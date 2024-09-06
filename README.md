@@ -221,9 +221,10 @@ def model_probs_fn(features):
     return probs
 
 
-# Find the 1% highest effect patches. These are the patches that,
-# when removed, drop the probability of metastasis the most.
-# The `results` variable is a dictionary with.... results of the search!
+# Find the 1% highest effect patches. These are the patches that, when removed, drop the probability
+# of metastasis the most. The `results` variable is a dictionary with.... results of the search!
+# The model outputs in `results["model_outputs"]` correspond to the results after removing the patches
+# in `results["ablated_patches"][:k]`.
 num_rounds = math.ceil(len(features) * 0.01)
 results = hippo.greedy_search(
     features=features,
@@ -234,10 +235,6 @@ results = hippo.greedy_search(
     # when the patches are *removed*.
     optimizer=hippo.minimize,
 )
-
-# The values of `results["model_outputs"]` and `results["ablated_patches"]` are numpy arrays
-# with the same length. The k-th index in `results["model_outputs"]` corresponds to the model
-# outputs after the patches `results["ablated_patches"][k+1]` have been removed.
 
 # Now we can test the effect of removing the 1% highest effect patches.
 patches_not_ablated = np.setdiff1d(np.arange(len(features)), results["ablated_patches"])
@@ -260,7 +257,6 @@ plt.plot(model_results)
 plt.xlabel("Number of patches removed")
 plt.ylabel("Probability of metastasis")
 ```
-
 
 
 # Cite
