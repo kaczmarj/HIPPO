@@ -54,7 +54,7 @@ We provide a training script for classification models at https://huggingface.co
 
 # Examples
 
-## Minimal reproducubile example with synthetic data
+## Minimal reproducible example with synthetic data
 
 The code below isn't intended to show any effect of an intervention. Rather, the purpose is to show how to use HIPPO to create an intervention in a specimen and evaluate the effects using a pretrained ABMIL model.
 
