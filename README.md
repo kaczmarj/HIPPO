@@ -175,6 +175,94 @@ Tumor probability after removing top 1% of attention: 0.988
 Tumor probability after removing top 5% of attention: 0.001
 ```
 
+## HIPPO greedy search algorithms
+
+HIPPO implements greedy search algorithms to identify important patches. Below, we search for the patches that have the highest effect on metastasis detection. Briefly, we identify the patches that, when removed, result in the lowest probabilities for metastasis detections.
+
+```python
+import math
+import hippo
+import huggingface_hub
+import numpy as np
+import torch
+
+# Set our device.
+device = torch.device("cpu")
+# device = torch.device("cuda")  # Uncomment if you have a GPU.
+# device = torch.device("mps")  # Uncomment if you have an ARM Apple computer.
+
+# Load ABMIL model.
+model = hippo.AttentionMILModel(in_features=1024, L=512, D=384, num_classes=2)
+model.eval()
+# You may need to run huggingface_hub.login() to get this file.
+state_dict_path = huggingface_hub.hf_hub_download(
+    "kaczmarj/metastasis-abmil-128um-uni", filename="seed2/model_best.pt"
+)
+state_dict = torch.load(state_dict_path, map_location="cpu", weights_only=True)
+model.load_state_dict(state_dict)
+model.to(device)
+
+# Load features.
+features_path = huggingface_hub.hf_hub_download(
+    "kaczmarj/camelyon16-uni", filename="embeddings/test_064.pt", repo_type="dataset"
+)
+features = torch.load(features_path, weights_only=True).to(device)
+
+
+# Define a function that takes in a bag of features and returns model probabilities.
+# The output values are the values we want to optimize during our search.
+# This is why we use a function -- models can have different outputs. By defining
+# a function that returns the values we want to optimize on, we can streamline the code.
+def model_probs_fn(features):
+    with torch.inference_mode():
+        logits, _ = model(features)
+    # Shape of logits is 1xC, where C is number of classes.
+    probs = logits.softmax(1).squeeze(0)  # C
+    return probs
+
+
+# Find the 1% highest effect patches. These are the patches that,
+# when removed, drop the probability of metastasis the most.
+# The `results` variable is a dictionary with.... results of the search!
+num_rounds = math.ceil(len(features) * 0.01)
+results = hippo.greedy_search(
+    features=features,
+    model_probs_fn=model_probs_fn,
+    num_rounds=num_rounds,
+    output_index_to_optimize=1,
+    # We use minimize because we want to minimize the model outputs
+    # when the patches are *removed*.
+    optimizer=hippo.minimize,
+)
+
+# The values of `results["model_outputs"]` and `results["ablated_patches"]` are numpy arrays
+# with the same length. The k-th index in `results["model_outputs"]` corresponds to the model
+# outputs after the patches `results["ablated_patches"][k+1]` have been removed.
+
+# Now we can test the effect of removing the 1% highest effect patches.
+patches_not_ablated = np.setdiff1d(np.arange(len(features)), results["ablated_patches"])
+with torch.inference_mode():
+    prob_baseline = model(features).logits.softmax(1)[0, 1].item()  # 1.000
+    prob_without_high_effect = model(features[patches_not_ablated]).logits.softmax(1)[0, 1].item()  # 0.008
+
+print(f"Probability of metastasis at baseline: {prob_baseline:0.3f}")
+print(f"Probability of metastasis after removing 1% highest effect patches: {prob_without_high_effect:0.3f}")
+```
+
+We can also plot the model outputs as we remove high effect patches, and we hope to see a monotonically decreasing line.
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+
+model_results = results["model_outputs"][:, results["optimized_class_index"]]
+plt.plot(model_results)
+plt.xlabel("Number of patches removed")
+plt.ylabel("Probability of metastasis")
+```
+
+
+
 # Cite
 
 ```bibtex

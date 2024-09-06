@@ -1,0 +1,71 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hippo-nn"
+dependencies = [
+  "numpy>=1.20",
+  "torch>=1.9",
+  "tqdm",
+]
+requires-python = ">=3.8"
+authors = [
+  {name = "Jakub Kaczmarzyk", email = "jakub.kaczmarzyk@gmail.com"},
+]
+maintainers = [
+  {name = "Jakub Kaczmarzyk", email = "jakub.kaczmarzyk@gmail.com"},
+]
+description = "HIPPO explainability toolkit for computational pathology."
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["pathology", "computational pathology", "explainability", "deep learning", "abmil", "multiple instance learning", "counterfactuals"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.urls]
+Repository = "https://github.com/kaczmarj/HIPPO"
+"Bug Tracker" = "https://github.com/kaczmarj/HIPPO/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["hippo"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "hippo/_version.py"
+
+[tool.ruff]
+line-length = 99
+
+[tool.ruff.lint]
+extend-select = [
+  "F",
+  "E",
+  "W",
+  "I",
+  "UP",
+  "YTT",
+  "S",
+  "BLE",
+  "B",
+  "A",
+  # "CPY",
+  "C4",
+  "DTZ",
+  "T10",
+  # "EM",
+  "EXE",
+  "FA",
+  "ISC",
+  "ICN",
+  "PT",
+  "Q",
+]
