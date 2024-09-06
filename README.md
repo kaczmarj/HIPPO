@@ -2,6 +2,8 @@
 
 HIPPO is an explainability toolkit for weakly-supervised learning in computational pathology.
 
+Please see our preprint on arXiv https://arxiv.org/abs/2409.03080.
+
 > [!NOTE]
 > This codebase is a work in progress. Please check back periodically for updates.
 
@@ -12,22 +14,6 @@ Abstract
 Deep learning models have shown promise in histopathology image analysis, but their opaque decision-making process poses challenges in high-risk medical scenarios. Here we introduce HIPPO, an explainable AI method that interrogates attention-based multiple instance learning (ABMIL) models in computational pathology by generating counterfactual examples through tissue patch modifications in whole slide images. Applying HIPPO to ABMIL models trained to detect breast cancer metastasis reveals that they may overlook small tumors and can be misled by non-tumor tissue, while attention maps—widely used for interpretation—often highlight regions that do not directly influence predictions. By interpreting ABMIL models trained on a prognostic prediction task, HIPPO identified tissue areas with stronger prognostic effects than high-attention regions, which sometimes showed counterintuitive influences on risk scores. These findings demonstrate HIPPO's capacity for comprehensive model evaluation, bias detection, and quantitative hypothesis testing. HIPPO greatly expands the capabilities of explainable AI tools to assess the trustworthy and reliable development, deployment, and regulation of weakly-supervised models in computational pathology.
 
 If you find HIPPO useful, kindly [cite](#cite) it in your work.
-
-# Install
-
-To install the latest version of HIPPO, use the command below. HIPPO depends on PyTorch, so install that first using [these instructions](https://pytorch.org/get-started/locally/).
-
-```shell
-pip install git+https://github.com/kaczmarj/HIPPO
-```
-
-Developers and the brave should use the following commands for a local, editable install. Optionally, create a virtual environment.
-
-```
-git clone https://github.com/kaczmarj/HIPPO
-cd HIPPO
-python -m pip install --editable '.[dev]'
-```
 
 # How to use HIPPO
 
@@ -52,7 +38,7 @@ For attention-based multiple instance learning, first separate your whole slide 
 
 The code below isn't intended to show any effect of an intervention. Rather, the purpose is to show how to use HIPPO to create an intervention in a specimen and evaluate the effects using a pretrained ABMIL model.
 
-To work with real data and a pretrained model, see [the example below](#Test-the-necessity-of-tumor-for-metastasis-detection).
+To work with real data and a pretrained model, see [the example below](#test-the-sufficiency-of-tumor-for-metastasis-detection).
 
 
 ```python
@@ -76,7 +62,7 @@ patches_to_keep = np.setdiff1d(np.arange(features.shape[0]), patches_to_remove)
 # Get the model outputs for baseline and "treated" samples.
 with torch.inference_mode():
     baseline = model(features).logits.softmax(1)
-    treatment = model(features[patches_not_in_tumor]).logits.softmax(1)
+    treatment = model(features[patches_to_keep]).logits.softmax(1)
 ```
 
 ## Test the sufficiency of tumor for metastasis detection
@@ -96,16 +82,22 @@ import torch
 model = hippo.AttentionMILModel(in_features=1024, L=512, D=384, num_classes=2)
 model.eval()
 # You may need to run huggingface_hub.login() to get this file.
-state_dict_path = huggingface_hub.hf_hub_download("kaczmarj/metastasis-abmil-128um-uni", filename="seed2/model_best.pt")
+state_dict_path = huggingface_hub.hf_hub_download(
+    "kaczmarj/metastasis-abmil-128um-uni", filename="seed2/model_best.pt"
+)
 state_dict = torch.load(state_dict_path, map_location="cpu", weights_only=True)
 model.load_state_dict(state_dict)
 
-features_positive_path = huggingface_hub.hf_hub_download("kaczmarj/camelyon16-uni", filename="embeddings/test_001.pt", repo_type="dataset")
+features_positive_path = huggingface_hub.hf_hub_download(
+    "kaczmarj/camelyon16-uni", filename="embeddings/test_001.pt", repo_type="dataset"
+)
 features_positive = torch.load(features_positive_path, weights_only=True)
 # This index contains the embedding for the tumor patch shown in Figure 2a of the HIPPO preprint.
 tumor_patch = features_positive[7238].unsqueeze(0)  # 1x1024
 
-features_negative_patch = huggingface_hub.hf_hub_download("kaczmarj/camelyon16-uni", filename="embeddings/test_003.pt", repo_type="dataset")
+features_negative_patch = huggingface_hub.hf_hub_download(
+    "kaczmarj/camelyon16-uni", filename="embeddings/test_003.pt", repo_type="dataset"
+)
 features_negative = torch.load(features_negative_patch, weights_only=True)
 
 # Get the model outputs for baseline and treated samples.
@@ -131,7 +123,6 @@ In this way, we can quantify the effect of high attention regions.
 import math
 import hippo
 import huggingface_hub
-import numpy as np
 import torch
 
 # Create the ABMIL model. Here, we use random initializations for the example.
@@ -139,12 +130,16 @@ import torch
 model = hippo.AttentionMILModel(in_features=1024, L=512, D=384, num_classes=2)
 model.eval()
 # You may need to run huggingface_hub.login() to get this file.
-state_dict_path = huggingface_hub.hf_hub_download("kaczmarj/metastasis-abmil-128um-uni", filename="seed2/model_best.pt")
+state_dict_path = huggingface_hub.hf_hub_download(
+    "kaczmarj/metastasis-abmil-128um-uni", filename="seed2/model_best.pt"
+)
 state_dict = torch.load(state_dict_path, map_location="cpu", weights_only=True)
 model.load_state_dict(state_dict)
 
 # Load features for positive specimen.
-features_path = huggingface_hub.hf_hub_download("kaczmarj/camelyon16-uni", filename="embeddings/test_001.pt", repo_type="dataset")
+features_path = huggingface_hub.hf_hub_download(
+    "kaczmarj/camelyon16-uni", filename="embeddings/test_001.pt", repo_type="dataset"
+)
 features = torch.load(features_path, weights_only=True)
 
 # Get the model outputs for baseline and treated samples.
