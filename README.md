@@ -15,6 +15,22 @@ Deep learning models have shown promise in histopathology image analysis, but th
 
 If you find HIPPO useful, kindly [cite](#cite) it in your work.
 
+# Install
+
+To install the latest version of HIPPO, use the command below. HIPPO depends on PyTorch, so install that first using [these instructions](https://pytorch.org/get-started/locally/).
+
+```shell
+pip install hippo-nn
+```
+
+Developers and the brave should use the following commands for a local, editable install. Optionally, create a virtual environment.
+
+```
+git clone https://github.com/kaczmarj/HIPPO
+cd HIPPO
+python -m pip install --editable '.[dev]'
+```
+
 # How to use HIPPO
 
 HIPPO is meant for weakly-supervised, multiple instance learning models in computational pathology. Before you use HIPPO, you need patch embeddings, and and a trained attention-based multiple instance learning (ABMIL) model. Below, we briefly describe how to go from whole slide images (WSIs) to a trained ABMIL model.
