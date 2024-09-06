@@ -33,7 +33,7 @@ python -m pip install --editable '.[dev]'
 
 # How to use HIPPO
 
-HIPPO is meant for weakly-supervised, multiple instance learning models in computational pathology. Before you use HIPPO, you need patch embeddings, and and a trained attention-based multiple instance learning (ABMIL) model. Below, we briefly describe how to go from whole slide images (WSIs) to a trained ABMIL model.
+HIPPO is meant for weakly-supervised models in computational pathology. Before you use HIPPO, you need patch embeddings, and a trained attention-based multiple instance learning (ABMIL) model. Below, we briefly describe how to go from whole slide images (WSIs) to a trained ABMIL model.
 
 We also made available models for metastasis detection, trained on CAMELYON16. Please see the following HuggingFace repositories for metastasis detection models trained using different encoders:
 - UNI: https://huggingface.co/kaczmarj/metastasis-abmil-128um-uni
