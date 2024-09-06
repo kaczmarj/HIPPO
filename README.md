@@ -34,7 +34,7 @@ First separate your whole slide images into smaller, non-overlapping patches. Th
 
 ## Train the ABMIL model
 
-We provide a trainin script for classification models at https://huggingface.co/kaczmarj/metastasis-abmil-128um-uni/blob/main/train_classification.py. Alternatively, trained a model with [CLAM](https://github.com/mahmoodlab/CLAM) or another toolkit. HIPPO can work with any weakly-supervised model that accepts a bag of patches and returns a specimen-level output.
+We provide a training script for classification models at https://huggingface.co/kaczmarj/metastasis-abmil-128um-uni/blob/main/train_classification.py. Alternatively, trained a model with [CLAM](https://github.com/mahmoodlab/CLAM) or another toolkit. HIPPO can work with any weakly-supervised model that accepts a bag of patches and returns a specimen-level output.
 
 # Examples
 
