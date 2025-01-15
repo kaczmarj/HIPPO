@@ -1,6 +1,6 @@
 # HIPPO
 
-HIPPO is an explainability toolkit for weakly-supervised learning in computational pathology.
+HIPPO is an explainability method and toolkit for weakly-supervised learning in computational pathology.
 
 Please see our preprint on arXiv https://arxiv.org/abs/2409.03080.
 
@@ -11,13 +11,13 @@ Abstract
 --------
 <img src="docs/logo.png" width="200px" align="right" />
 
-Deep learning models have shown promise in histopathology image analysis, but their opaque decision-making process poses challenges in high-risk medical scenarios. Here we introduce HIPPO, an explainable AI method that interrogates attention-based multiple instance learning (ABMIL) models in computational pathology by generating counterfactual examples through tissue patch modifications in whole slide images. Applying HIPPO to ABMIL models trained to detect breast cancer metastasis reveals that they may overlook small tumors and can be misled by non-tumor tissue, while attention maps—widely used for interpretation—often highlight regions that do not directly influence predictions. By interpreting ABMIL models trained on a prognostic prediction task, HIPPO identified tissue areas with stronger prognostic effects than high-attention regions, which sometimes showed counterintuitive influences on risk scores. These findings demonstrate HIPPO's capacity for comprehensive model evaluation, bias detection, and quantitative hypothesis testing. HIPPO greatly expands the capabilities of explainable AI tools to assess the trustworthy and reliable development, deployment, and regulation of weakly-supervised models in computational pathology.
+Deep learning models show promise in digital pathology, but their opaque decision-making processes undermine trust and limit their widespread clinical adoption. To address this challenge, we present HIPPO, an explainable AI method for analyzing weakly-supervised models in pathology. HIPPO systematically modifies tissue regions in whole slide images to create counterfactuals, enabling quantitative hypothesis testing, bias detection, and model evaluation beyond traditional performance metrics. We demonstrate HIPPO’s capabilities through computational experiments in breast metastasis detection in axillary lymph nodes, prognostication in breast cancer and melanoma, and _IDH_ mutation classification in gliomas. In computational experiments, HIPPO was compared against traditional metrics and attention-based approaches to assess its ability to identify key tissue elements driving model predictions. In metastasis detection, HIPPO uncovered critical model limitations that were undetectable by standard performance metrics or attention-based methods. For prognostic prediction, HIPPO outperformed attention by providing more nuanced insights into tissue elements influencing outcomes. In a proof-of-concept study, HIPPO facilitated hypothesis generation for identifying melanoma patients who may benefit from immunotherapy. In _IDH_ mutation classification, HIPPO more robustly identified the pathology regions responsible for false negatives compared to attention, suggesting its potential to outperform attention in explaining model decisions. HIPPO expands the explainable AI toolkit for computational pathology by enabling deeper insights into model behavior. This framework supports the trustworthy development, deployment, and regulation of weakly-supervised models in clinical and research settings, promoting their broader adoption in digital pathology.
 
 If you find HIPPO useful, kindly [cite](#cite) it in your work.
 
 # Install
 
-To install the latest version of HIPPO, use the command below. HIPPO depends on PyTorch, so install that first using [these instructions](https://pytorch.org/get-started/locally/).
+To install the latest version of HIPPO, use the command below. HIPPO depends on PyTorch, so install that first using [these instructions](https://pytorch.org/get-started/locally/). Installation should typically take about two minutes. PyTorch and its dependencies take the longest to download and install.
 
 ```shell
 pip install hippo-nn
@@ -30,6 +30,10 @@ git clone https://github.com/kaczmarj/HIPPO
 cd HIPPO
 python -m pip install --editable '.[dev]'
 ```
+
+We developed and tested HIPPO on a CentOS 7 Linux machine with the following packages: python 3.11.6, numpy 1.26.0, torch 2.1.1, openslide-python 1.3.1, pandas 2.1.3, h5py 3.9.0, scipy 1.11.3, and shapely 2.0.2. Only a subset of these packages is required to use HIPPO. The other packages support data analysis.
+
+While not required, HIPPO works best with a GPU. If a GPU is not available, HIPPO will be slower, in particular the search algorithm.
 
 # How to use HIPPO
 
@@ -85,6 +89,8 @@ with torch.inference_mode():
     treatment = model(features[patches_to_keep]).logits.softmax(1)
 ```
 
+The code above should take less than 10 seconds to run.
+
 ## Test the sufficiency of tumor for metastasis detection
 
 In the example below, we load a UNI-based ABMIL model for metastasis detection, trained on CAMELYON16.
@@ -128,6 +134,8 @@ with torch.inference_mode():
 print(f"Probability of tumor in baseline: {baseline:0.3f}")  # 0.002
 print(f"Probability of tumor after adding one tumor patch: {treatment:0.3f}")  # 0.824
 ```
+
+The code above should take less than one minute to run.
 
 ## Test the effect of high attention regions
 
@@ -190,6 +198,8 @@ Tumor probability at baseline: 0.997
 Tumor probability after removing top 1% of attention: 0.988
 Tumor probability after removing top 5% of attention: 0.001
 ```
+
+The code above should take less than one minute to run.
 
 ## HIPPO greedy search algorithms
 
@@ -261,6 +271,8 @@ with torch.inference_mode():
 print(f"Probability of metastasis at baseline: {prob_baseline:0.3f}")
 print(f"Probability of metastasis after removing 1% highest effect patches: {prob_without_high_effect:0.3f}")
 ```
+
+The code above should take less than five minutes to run, with a GPU.
 
 We can also plot the model outputs as we remove high effect patches, and we hope to see a monotonically decreasing line.
 
