@@ -252,7 +252,7 @@ def greedy_search(
                     features=features_ablated,
                     model_probs_fn=model_probs_fn,
                 )
-                for index_to_drop in range(num_patches_to_test)
+                for index_to_drop in tqdm(range(num_patches_to_test))
             ]
         )
         if ablated_probs.ndim != 2:
@@ -280,3 +280,88 @@ def greedy_search(
         "ablated_patches": np.array(dropped_indices_original_frame),
     }
     return results
+
+
+def greedy_search_batched(
+    *,
+    features: torch.Tensor,
+    model_probs_fn: Callable[[torch.Tensor], torch.Tensor],
+    output_index_to_optimize: int,
+    optimizer: Callable[[torch.Tensor, float | None], int],
+    num_rounds: int | None = None,
+    constant_features: torch.Tensor | None = None,
+    disable_progbar: bool = False,
+    device: torch.device | None = None,
+) -> dict[str, int | npt.NDArray]:
+    """
+    Greedy search with memory-efficient batching.
+
+    Instead of creating full (N, N-1, C) tensor, we evaluate ablated inputs
+    in batches, reducing memory usage.
+    """
+    batch_size = 32
+    device = device or features.device
+    features = features.clone().to(device)
+    num_rounds = num_rounds or len(features) - 1
+    if num_rounds <= 0 or num_rounds > len(features):
+        raise ValueError("Invalid num_rounds")
+
+    _validate_model_probs_fn(features=features, model_probs_fn=model_probs_fn, output_index_to_test=output_index_to_optimize)
+    _validate_optimizer(optimizer)
+
+    if constant_features is not None:
+        constant_features = constant_features.to(device)
+        if constant_features.shape[1] != features.shape[1]:
+            raise ValueError("Feature dimensions mismatch")
+        features = torch.cat([features, constant_features], dim=0)
+
+    indices_remaining = torch.arange(len(features), device=device)
+    dropped_indices: list[int] = []
+    model_outputs: list[torch.Tensor] = []
+
+    # Baseline
+    with torch.inference_mode():
+        baseline = model_probs_fn(features).cpu()
+    model_outputs.append(baseline)
+
+    for _ in tqdm(range(num_rounds), desc="Rounds", disable=disable_progbar):
+        features_remaining = features[indices_remaining]
+        N = len(features_remaining)
+
+        if N == 1:
+            print("Only one patch left. Stopping early.")
+            break
+
+        # Evaluate ablations in batches
+        ablated_probs_list = []
+        for start in range(0, N, batch_size):
+            end = min(start + batch_size, N)
+            idxs = torch.arange(start, end, device=device)
+            # Create ablated inputs for this batch
+            batch_list = [torch.cat([features_remaining[:i], features_remaining[i + 1:]], dim=0) for i in idxs]
+            batch_tensor = torch.stack(batch_list)  # (batch_size, N-1, C)
+            batch_flat = batch_tensor.view(-1, features.shape[1])  # flatten for model
+            print(batch_flat.shape)
+
+            with torch.inference_mode():
+                preds_flat = model_probs_fn(batch_flat)
+            D = preds_flat.shape[-1]
+            print(preds_flat.shape)
+            batch_probs = preds_flat.view(end - start, N - 1, D)[:, -1, :]
+            ablated_probs_list.append(batch_probs)
+
+        ablated_probs = torch.cat(ablated_probs_list, dim=0)  # (N, D)
+        baseline_this_round = model_probs_fn(features_remaining)[output_index_to_optimize].item()
+        current = ablated_probs[:, output_index_to_optimize]
+        idx_to_drop = optimizer(current, baseline_this_round)
+
+        original_idx = indices_remaining[idx_to_drop].item()
+        indices_remaining = torch.cat([indices_remaining[:idx_to_drop], indices_remaining[idx_to_drop + 1:]])
+        dropped_indices.append(original_idx)
+        model_outputs.append(ablated_probs[idx_to_drop].cpu())
+
+    return {
+        "optimized_class_index": output_index_to_optimize,
+        "model_outputs": torch.stack(model_outputs).cpu().numpy(),
+        "ablated_patches": np.array(dropped_indices),
+    }
