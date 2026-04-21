@@ -1,0 +1,3 @@
+,train,val,test
+IDH-wildtype,430,56,54
+IDH-mutant,266,36,31

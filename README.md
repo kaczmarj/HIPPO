@@ -7,33 +7,25 @@ Please see our preprint on arXiv https://arxiv.org/abs/2409.03080.
 > [!NOTE]
 > This codebase is a work in progress. Please check back periodically for updates.
 
-Abstract
---------
-<img src="docs/logo.png" width="200px" align="right" />
+# Environment Setup
 
-Deep learning models show promise in digital pathology, but their opaque decision-making processes undermine trust and limit their widespread clinical adoption. To address this challenge, we present HIPPO, an explainable AI method for analyzing weakly-supervised models in pathology. HIPPO systematically modifies tissue regions in whole slide images to create counterfactuals, enabling quantitative hypothesis testing, bias detection, and model evaluation beyond traditional performance metrics. We demonstrate HIPPO’s capabilities through computational experiments in breast metastasis detection in axillary lymph nodes, prognostication in breast cancer and melanoma, and _IDH_ mutation classification in gliomas. In computational experiments, HIPPO was compared against traditional metrics and attention-based approaches to assess its ability to identify key tissue elements driving model predictions. In metastasis detection, HIPPO uncovered critical model limitations that were undetectable by standard performance metrics or attention-based methods. For prognostic prediction, HIPPO outperformed attention by providing more nuanced insights into tissue elements influencing outcomes. In a proof-of-concept study, HIPPO facilitated hypothesis generation for identifying melanoma patients who may benefit from immunotherapy. In _IDH_ mutation classification, HIPPO more robustly identified the pathology regions responsible for false negatives compared to attention, suggesting its potential to outperform attention in explaining model decisions. HIPPO expands the explainable AI toolkit for computational pathology by enabling deeper insights into model behavior. This framework supports the trustworthy development, deployment, and regulation of weakly-supervised models in clinical and research settings, promoting their broader adoption in digital pathology.
-
-If you find HIPPO useful, kindly [cite](#cite) it in your work.
-
-# Install
-
-To install the latest version of HIPPO, use the command below. HIPPO depends on PyTorch, so install that first using [these instructions](https://pytorch.org/get-started/locally/). Installation should typically take about two minutes. PyTorch and its dependencies take the longest to download and install.
-
-```shell
-pip install hippo-nn
-```
-
-Developers and the brave should use the following commands for a local, editable install. Optionally, create a virtual environment.
+1. Git clone this repository
+2. `cd HIPPO`
+3. Create and activate the conda environment
 
 ```
-git clone https://github.com/kaczmarj/HIPPO
-cd HIPPO
-python -m pip install --editable '.[dev]'
+conda create --name hippo-env python=3.10
+conda activate hippo-env
 ```
 
-We developed and tested HIPPO on a CentOS 7 Linux machine with the following packages: python 3.11.6, numpy 1.26.0, torch 2.1.1, openslide-python 1.3.1, pandas 2.1.3, h5py 3.9.0, scipy 1.11.3, and shapely 2.0.2. Only a subset of these packages is required to use HIPPO. The other packages support data analysis.
+4. Install the dependencies with
 
-While not required, HIPPO works best with a GPU. If a GPU is not available, HIPPO will be slower, in particular the search algorithm.
+```
+conda create -n hippo-env python=3.10
+conda install openslide=3.4.1 openslide-python=1.3.1 -c conda-forge -y # openslide is best installed via conda
+pip install torch==2.6 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+pip install -r requirements.txt
+```
 
 # How to use HIPPO
 
@@ -56,7 +48,103 @@ First separate your whole slide images into smaller, non-overlapping patches. Th
 
 We provide a training script for classification models at https://huggingface.co/kaczmarj/metastasis-abmil-128um-uni/blob/main/train_classification.py. Alternatively, trained a model with [CLAM](https://github.com/mahmoodlab/CLAM) or another toolkit. HIPPO can work with any weakly-supervised model that accepts a bag of patches and returns a specimen-level output.
 
-# Examples
+# HIPPO Workflow
+
+## 1. Extract Features from Foundation Model
+
+Extract deep features from whole slide images using a foundation model encoder (e.g., Virchow2):
+
+```bash
+cd scripts
+python extract_features.py \
+  --encoder virchow2 \
+  --wsi-dir /path/to/wsi/images/ \
+  --patch-dir /path/to/patch/coordinates/ \
+  --save-dir /path/to/output/features/ \
+  --wsi-extension .tif \
+  --batch-size 64 \
+  --num-workers 8
+```
+
+**Parameters:**
+- `--encoder`: Foundation model encoder to use (e.g., `virchow2`)
+- `--wsi-dir`: Directory containing whole slide images
+- `--patch-dir`: Directory containing patch coordinate HDF5 files
+- `--save-dir`: Output directory for extracted features
+- `--wsi-extension`: File extension of WSI files (e.g., `.svs`, `.ndpi`, `.tif`)
+- `--batch-size`: Batch size for DataLoader (default: 64)
+- `--num-workers`: Number of workers for data loading (default: 8)
+
+## 2. Train ABMIL or VisionTransformer Models
+
+Train an attention-based multiple instance learning (ABMIL) or Vision Transformer model on extracted features. The `../data/` directory contains the labels csv along with the json splits.
+
+## Train ABMIL Model
+
+```bash
+cd scripts
+python train_classification.py \
+  --model-name VisionTransformer  \
+  --features-dir /path/to/deep/features \
+  --output-dir /path/to/output/directory \
+  --csv ../data/camelyon16-labels.csv \
+  --label-col binary_label_int \
+  --num-classes 2 \
+  --embedding-size 1024 \
+  --split-json ../data/splits/camelyon16/camelyon16-split0.json \
+  --fold 0 \
+  --num-epochs 20 \
+  --seed 0 \
+  -L 512 \
+  -D 384 \
+  --lr 1e-4
+```
+
+**Common Parameters:**
+- `--model-name`: Model architecture to train (choose one of `AttentionMILModel`, `AttentionMILMultiBranchModel`, `AdditiveAttentionMILModel`, `VisionTransformer`)
+- `--features-dir`: Directory containing extracted features
+- `--output-dir`: Directory to save trained model and results
+- `--csv`: CSV file with slide labels and metadata
+- `--label-col`: Column name in CSV containing labels (e.g. binary_label_int for camelyon16) 
+- `--num-classes`: Number of classification classes
+- `--embedding-size`: Dimension of feature embeddings (e.g., 1024 for Virchow2)
+- `--split-json`: JSON file with train/validation/test splits
+- `--fold`: Cross-validation fold number
+- `--num-epochs`: Number of training epochs (default: 20)
+- `--seed`: Random seed for reproducibility (default: 0)
+- `--lr`: Learning rate (default: 1e-4)
+- `-L`: Attention layer dimension (default: 256)
+- `-D`: Attention module dimension (default: 256)
+- `--dropout`: Dropout rate (default: 0.25)
+
+## 3. Run HIPPO Search
+
+Run the HIPPO algorithm to identify high-effect subsets of patches in a slide:
+
+```bash
+cd scripts
+python run_hippo_search.py \
+  --fold 0 \
+  --features_root /path/to/deep/features \
+  --slide_id a195bae3-357f-11eb-b1e7-001a7dda7111 \
+  --model_root /path/to/trained/models/camelyon16/abmil-virchow2-128um_seed0/ \
+  --output_dir /path/to/output/hippo/results/ \
+  --optimizer minimize \
+  --output_index_to_optimize 1
+```
+
+**Parameters:**
+- `--fold`: Cross-validation fold number (default: 0)
+- `--features_root`: Path to the root directory containing the features
+- `--slide_id`: ID of the slide to analyze
+- `--model_root`: Path to the root directory containing trained model artifacts
+- `--output_dir`: Directory to save HIPPO search results
+- `--optimizer`: Type of HIPPO optimization to perform (minimize, maximize, or smallest_difference)
+- `output_index_to_optimize`: Index of the model output to optimize during the search (e.g., 1 for the positive class probability)
+
+# Experimental Examples
+
+For all examples, first enter the `scripts` directory by running `cd scripts`.
 
 ## Minimal reproducible example with synthetic data
 
@@ -66,13 +154,13 @@ To work with real data and a pretrained model, see [the example below](#test-the
 
 
 ```python
-import hippo
+import models
 import numpy as np
 import torch
 
 # Create the ABMIL model. Here, we use random initializations for the example.
 # You should use a pretrained model in practice.
-model = hippo.AttentionMILModel(in_features=1024, L=512, D=384, num_classes=2)
+model = models.abmil.AttentionMILModel(in_features=1024, L=512, D=384, num_classes=2)
 model.eval()
 
 # We use random features. In practice, use actual features :)
@@ -98,14 +186,14 @@ Then, we take the embedding from one tumor patch from specimen `test_001` and ad
 The addition of this single tumor patch is enough to cause a positive metastasis result.
 
 ```python
-import hippo
+import models
 import huggingface_hub
 import numpy as np
 import torch
 
 # Create the ABMIL model. Here, we use random initializations for the example.
 # You should use a pretrained model in practice.
-model = hippo.AttentionMILModel(in_features=1024, L=512, D=384, num_classes=2)
+model = models.abmil.AttentionMILModel(in_features=1024, L=512, D=384, num_classes=2)
 model.eval()
 # You may need to run huggingface_hub.login() to get this file.
 state_dict_path = huggingface_hub.hf_hub_download(
@@ -149,13 +237,13 @@ In this way, we can quantify the effect of high attention regions.
 
 ```python
 import math
-import hippo
+import models
 import huggingface_hub
 import torch
 
 # Create the ABMIL model. Here, we use random initializations for the example.
 # You should use a pretrained model in practice.
-model = hippo.AttentionMILModel(in_features=1024, L=512, D=384, num_classes=2)
+model = models.abmil.AttentionMILModel(in_features=1024, L=512, D=384, num_classes=2)
 model.eval()
 # You may need to run huggingface_hub.login() to get this file.
 state_dict_path = huggingface_hub.hf_hub_download(
@@ -207,7 +295,8 @@ HIPPO implements greedy search algorithms to identify important patches. Below, 
 
 ```python
 import math
-import hippo
+import models
+import search
 import huggingface_hub
 import numpy as np
 import torch
@@ -218,7 +307,7 @@ device = torch.device("cpu")
 # device = torch.device("mps")  # Uncomment if you have an ARM Apple computer.
 
 # Load ABMIL model.
-model = hippo.AttentionMILModel(in_features=1024, L=512, D=384, num_classes=2)
+model = models.abmil.AttentionMILModel(in_features=1024, L=512, D=384, num_classes=2)
 model.eval()
 # You may need to run huggingface_hub.login() to get this file.
 state_dict_path = huggingface_hub.hf_hub_download(
@@ -252,14 +341,14 @@ def model_probs_fn(features):
 # The model outputs in `results["model_outputs"]` correspond to the results after removing the patches
 # in `results["ablated_patches"][:k]`.
 num_rounds = math.ceil(len(features) * 0.01)
-results = hippo.greedy_search(
+results = search.greedy_search(
     features=features,
     model_probs_fn=model_probs_fn,
     num_rounds=num_rounds,
     output_index_to_optimize=1,
     # We use minimize because we want to minimize the model outputs
     # when the patches are *removed*.
-    optimizer=hippo.minimize,
+    optimizer=search.minimize,
 )
 
 # Now we can test the effect of removing the 1% highest effect patches.
@@ -290,14 +379,11 @@ plt.ylabel("Probability of metastasis")
 # Cite
 
 ```bibtex
-@misc{kaczmarzyk2024explainableaicomputationalpathology,
-      title={Explainable AI for computational pathology identifies model limitations and tissue biomarkers},
-      author={Jakub R. Kaczmarzyk and Joel H. Saltz and Peter K. Koo},
-      year={2024},
-      eprint={2409.03080},
-      archivePrefix={arXiv},
-      primaryClass={q-bio.TO},
-      url={https://arxiv.org/abs/2409.03080},
+@article{kaczmarzyk2024explainable,
+  title={Explainable AI for computational pathology identifies model limitations and tissue biomarkers},
+  author={Kaczmarzyk, Jakub R and Kim, Chanwoo and Gadgil, Soham and Savant, Deepika and Zhao, Zhen and Saltz, Joel H and Lee, Su-In and Koo, Peter K},
+  journal={arXiv preprint arXiv:2409.03080},
+  year={2024}
 }
 ```
 

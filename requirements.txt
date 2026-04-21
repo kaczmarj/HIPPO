@@ -1,0 +1,47 @@
+# Computer Vision
+opencv-python
+
+# CLIP and related packages
+ftfy
+regex
+tqdm
+git+https://github.com/openai/CLIP.git
+open_clip_torch==2.26.1
+git+https://github.com/mahmoodlab/CONCH@02d6ac59cc20874bff0f581de258c2b257f69a84
+
+# Transformers and ML frameworks
+datasets
+huggingface_hub
+transformers==4.49.0
+diffusers
+timm
+accelerate
+nystrom-attention
+
+# Analysis and utility packages
+numpy==1.26
+matplotlib
+click
+seaborn
+pytest
+easydict
+pyrootutils
+einops
+albumentations
+tiffslide
+tifffile
+torchmetrics
+wandb>=0.21
+torch-summary
+simple-parsing
+scikit-learn==1.6.1
+markdownify==1.0.0
+shapely==2.0.7
+
+# Survival analysis
+scikit-survival==0.24.1
+lifelines==0.30.0
+
+# Jupyter environment
+jupyterlab
+ipywidgets
