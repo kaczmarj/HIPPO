@@ -44,10 +44,6 @@ To simplify reproducibility, we also uploaded UNI embeddings for CAMELYON16 to h
 
 First separate your whole slide images into smaller, non-overlapping patches. The CLAM toolkit is one popular way to do this. After you have patch coordinates, you will have to encode those patches with a pre-trained model. There are countless options to choose from, but I would opt for a recent foundation model trained on a large and diverse set of histopathology images. Keep track of the patch coordinates and the patch features. This will be useful for downstream HIPPO experiments and visualizing attention maps.
 
-## Train the ABMIL model
-
-We provide a training script for classification models at https://huggingface.co/kaczmarj/metastasis-abmil-128um-uni/blob/main/train_classification.py. Alternatively, trained a model with [CLAM](https://github.com/mahmoodlab/CLAM) or another toolkit. HIPPO can work with any weakly-supervised model that accepts a bag of patches and returns a specimen-level output.
-
 # HIPPO Workflow
 
 ## 1. Extract Features from Foundation Model
